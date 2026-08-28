@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پروکسی یاب تلگرام | نسخه ۲</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap');
+
+        :root {
+            --bg: #010409;
+            --card: #0d1117;
+            --border: rgba(255, 255, 255, 0.08);
+            --text: #e6edf3;
+            --text-sec: #8b949e;
+            --accent: #2f81f7;
+            --success: #238636;
+            --warning: #d29922;
+            --danger: #f85149;
+            --glow: rgba(47, 129, 247, 0.35);
+        }
+
+        [data-theme="light"] {
+            --bg: #f6f8fa;
+            --card: #ffffff;
+            --border: rgba(0, 0, 0, 0.08);
+            --text: #1f2328;
+            --text-sec: #656d76;
+            --accent: #0969da;
+            --success: #1a7f37;
+            --warning: #9a6700;
+            --danger: #cf222e;
+            --glow: rgba(9, 105, 218, 0.2);
+        }
+
+        * { font-family: 'Vazirmatn', sans-serif; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .proxy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 20px;
+        }
+
+        .proxy-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 22px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+            backdrop-filter: blur(12px);
+        }
+
+        .proxy-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(500px circle at var(--mouse-x) var(--mouse-y), var(--glow), transparent 40%);
+            opacity: 0;
+            transition: opacity 0.4s;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .proxy-card:hover::before { opacity: 1; }
+        .proxy-card:hover {
+            transform: translateY(-6px);
+            border-color: var(--accent);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.25);
+        }
+
+        .card-content { position: relative; z-index: 1; }
+
+        .btn {
+            background: rgba(255,255,255,0.04);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: var(--accent);
+        }
+        .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .btn-primary:hover { filter: brightness(1.1); box-shadow: 0 0 18px var(--glow); }
+        .btn-success { background: var(--success); border-color: var(--success); color: #fff; }
+        .btn-success:hover { filter: brightness(1.1); }
+
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;
+            background: rgba(0,0,0,0.25); border: 1px solid transparent;
+        }
+        .status-good { color: #3fb950; border-color: #3fb95033; }
+        .status-medium { color: #d29922; border-color: #d2992233; }
+        .status-bad { color: #f85149; border-color: #f8514933; }
+        .status-unknown { color: var(--text-sec); border-color: var(--border); }
+
+        .pulsing-dot { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(63,185,80,0.6); }
+            50% { box-shadow: 0 0 0 7px transparent; }
+        }
+
+        .loading-spinner {
+            width: 18px; height: 18px; border: 2px solid var(--border);
+            border-radius: 50%; border-top-color: var(--accent);
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .fade-in-up { animation: fadeInUp 0.5s ease-out forwards; opacity: 0; }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 8px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Welcome Modal */
+        .welcome-modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(1,4,9,0.75);
+            backdrop-filter: blur(10px);
+            z-index: 200;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.35s;
+            padding: 1rem;
+        }
+        .welcome-modal-overlay:not(.hidden) { opacity: 1; }
+
+        .welcome-modal-content {
+            background: linear-gradient(160deg, var(--card), var(--bg));
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px 36px;
+            width: 100%; max-width: 440px;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 0 60px var(--glow);
+            transform: scale(0.92) translateY(16px);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        .welcome-modal-overlay:not(.hidden) .welcome-modal-content {
+            transform: scale(1) translateY(0); opacity: 1;
+        }
+
+        .welcome-modal-close {
+            position: absolute; top: 12px; left: 16px;
+            background: none; border: none; color: var(--text-sec);
+            font-size: 28px; cursor: pointer; line-height: 1;
+            transition: all 0.2s;
+        }
+        .welcome-modal-close:hover { color: var(--text); transform: rotate(90deg); }
+
+        .hidden { display: none !important; }
+
+        /* Toast */
+        .toast {
+            position: fixed; top: 20px; left: 20px; z-index: 300;
+            max-width: 90vw; padding: 12px 18px; border-radius: 12px;
+            color: #fff; font-weight: 600; border-right: 4px solid;
+            transform: translateX(-120%); transition: transform 0.45s cubic-bezier(0.23,1,0.32,1);
+            backdrop-filter: blur(8px);
+        }
+        .toast.show { transform: translateX(0); }
+
+        /* Theme toggle */
+        .theme-btn {
+            width: 42px; height: 42px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        .theme-btn:hover { border-color: var(--accent); background: rgba(47,129,247,0.1); }
+
+        input, select {
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid var(--border) !important;
+            color: var(--text) !important;
+            border-radius: 10px !important;
+        }
+        input:focus, select:focus {
+            outline: none; border-color: var(--accent) !important;
+            box-shadow: 0 0 0 3px var(--glow);
+        }
+
+        @media (max-width: 768px) {
+            .proxy-grid { grid-template-columns: 1fr; }
+        }
+
+        ::-webkit-scrollbar { width: 7px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        [data-theme="light"] ::-webkit-scrollbar-thumb { background: #d0d7de; }
+    </style>
+</head>
+<body>
+
+    <!-- Welcome Modal -->
+    <div id="welcomeModal" class="welcome-modal-overlay hidden">
+        <div class="welcome-modal-content">
+            <button id="closeWelcomeModal" class="welcome-modal-close">&times;</button>
+            <div class="w-16 h-16 mx-auto mb-5 rounded-full bg-blue-500/10 flex items-center justify-center">
+                <i class="fa-solid fa-rocket text-3xl text-sky-400"></i>
+            </div>
+            <h2 class="text-2xl font-extrabold mb-3">به پروکسی‌یاب خوش آمدید!</h2>
+            <p class="text-sm text-[var(--text-sec)] mb-6 leading-relaxed">نسل جدید پروکسی‌های امن و پرسرعت MTProto برای تلگرام</p>
+            <a href="https://t.me/V2rays_Falcon" target="_blank" rel="noopener"
+               class="inline-flex items-center gap-2 bg-[var(--accent)] text-white px-6 py-3 rounded-xl font-semibold hover:brightness-110 transition">
+                <i class="fa-brands fa-telegram"></i>
+                عضویت در کانال
+            </a>
+        </div>
+    </div>
+
+    <main class="container mx-auto px-4 py-8 md:py-10 relative z-10">
+
+        <!-- Header -->
+        <header class="text-center mb-10 fade-in-up">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-500/20 to-cyan-500/10 border border-sky-500/20 mb-5">
+                <i class="fa-solid fa-user-secret text-3xl text-sky-400"></i>
+            </div>
+            <h1 class="text-3xl md:text-5xl font-extrabold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-cyan-300">
+                پروکسی یاب تلگرام
+            </h1>
+            <p class="text-[var(--text-sec)] text-base md:text-lg max-w-xl mx-auto">
+                دسترسی سریع به پروکسی‌های امن و پرسرعت MTProto
+            </p>
+        </header>
+
+        <!-- Control Panel -->
+        <section class="proxy-card p-5 mb-6 fade-in-up" style="animation-delay:0.1s">
+            <div class="card-content space-y-5">
+                <!-- Top Row -->
+                <div class="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between">
+                    <div class="flex flex-wrap gap-3">
+                        <button id="refreshBtn" class="btn btn-primary px-5 py-2.5 flex items-center gap-2">
+                            <i id="refreshIcon" class="fa-solid fa-rotate"></i>
+                            <span>دریافت جدید</span>
+                        </button>
+                        <button id="testAllBtn" class="btn btn-success px-5 py-2.5 flex items-center gap-2">
+                            <i class="fa-solid fa-bolt-lightning"></i>
+                            <span>تست همه</span>
+                        </button>
+                        <button id="onlyGoodBtn" class="btn px-5 py-2.5 flex items-center gap-2">
+                            <i class="fa-solid fa-filter"></i>
+                            <span>فقط عالی‌ها</span>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <div class="text-center">
+                            <div class="text-xl font-bold" id="proxyCount">0</div>
+                            <div class="text-xs text-[var(--text-sec)]">کل</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-xl font-bold text-green-400" id="activeCount">0</div>
+                            <div class="text-xs text-[var(--text-sec)]">عالی</div>
+                        </div>
+                        <button id="themeToggle" class="theme-btn" title="تغییر تم">
+                            <i class="fa-solid fa-moon" id="themeIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-sec)] text-sm"></i>
+                        <input type="text" id="searchInput" placeholder="جستجو بر اساس سرور یا کشور..."
+                               class="w-full pr-10 pl-4 py-2.5 text-sm">
+                    </div>
+                    <select id="statusFilter" class="px-4 py-2.5 text-sm min-w-[140px]">
+                        <option value="all">همه وضعیت‌ها</option>
+                        <option value="good">عالی</option>
+                        <option value="medium">متوسط</option>
+                        <option value="bad">ضعیف</option>
+                        <option value="unknown">نامشخص</option>
+                    </select>
+                    <select id="sortSelect" class="px-4 py-2.5 text-sm min-w-[140px]">
+                        <option value="default">مرتب‌سازی پیش‌فرض</option>
+                        <option value="ping-asc">پینگ کم به زیاد</option>
+                        <option value="ping-desc">پینگ زیاد به کم</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <!-- Status -->
+        <div id="status" class="text-center mb-8 hidden">
+            <div class="inline-flex items-center gap-3 text-[var(--text-sec)]">
+                <div class="loading-spinner"></div>
+                <span>در حال بارگذاری و تست پروکسی‌ها...</span>
+            </div>
+        </div>
+
+        <!-- Proxy List -->
+        <div id="proxyList" class="proxy-grid"></div>
+
+        <!-- Load More -->
+        <div id="loadMoreContainer" class="text-center mt-8 hidden">
+            <button id="loadMoreBtn" class="btn px-8 py-3">
+                <i class="fa-solid fa-chevron-down ml-2"></i> نمایش بیشتر
+            </button>
+        </div>
+
+        <!-- No Results -->
+        <div id="noResults" class="text-center py-16 hidden">
+            <div class="proxy-card p-10 inline-block max-w-md">
+                <div class="card-content">
+                    <div class="w-20 h-20 bg-slate-800/40 rounded-full flex items-center justify-center mx-auto mb-5 border border-[var(--border)]">
+                        <i class="fa-solid fa-ghost text-3xl text-[var(--text-sec)]"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">پروکسی یافت نشد!</h3>
+                    <p class="text-[var(--text-sec)] mb-5 text-sm">فیلترها را تغییر دهید یا لیست را بروزرسانی کنید.</p>
+                    <button onclick="resetFiltersAndReload()" class="btn btn-primary px-5 py-2.5">
+                        <i class="fa-solid fa-rotate ml-1"></i> تلاش مجدد
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-8 mt-12 border-t border-[var(--border)] text-[var(--text-sec)] fade-in-up" style="animation-delay:0.3s">
+        <div class="container mx-auto px-4">
+            <div class="grid md:grid-cols-2 gap-8 items-center">
+                <div class="flex flex-col items-center md:items-start gap-2">
+                    <div class="flex items-center gap-2">
+                        <i class="fab fa-telegram text-xl text-sky-400"></i>
+                        <h4 class="font-bold text-[var(--text)]">کانال تلگرام</h4>
+                    </div>
+                    <p class="text-sm">آخرین پروکسی‌ها و بروزرسانی‌ها</p>
+                    <a href="https://t.me/V2rays_Falcon" target="_blank" rel="noopener"
+                       class="inline-flex items-center gap-1 mt-1 text-sky-400 font-medium text-sm hover:underline">
+                        @V2rays_Falcon <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                    </a>
+                </div>
+                <div class="flex flex-col items-center md:items-end gap-2">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-code text-lg text-green-400"></i>
+                        <h4 class="font-bold text-[var(--text)]">توسعه‌دهنده</h4>
+                    </div>
+                    <p class="text-sm">ساخته شده با <i class="fa-solid fa-heart text-red-500"></i> برای دسترسی آزاد</p>
+                    <a href="https://t.me/V2rays_Falcon" target="_blank" rel="noopener"
+                       class="inline-flex items-center gap-1 mt-1 text-green-400 font-medium text-sm hover:underline">
+                        @V2rays_Falcon
+                    </a>
+                </div>
+            </div>
+            <div class="mt-7 pt-5 border-t border-[var(--border)] text-xs flex items-center justify-center gap-2 flex-wrap">
+                <span>© ۱۴۰۳ پروکسی یاب تلگرام</span>
+                <span class="bg-sky-500/10 text-sky-400 px-2.5 py-0.5 rounded-full border border-sky-500/20">نسخه ۲.۰</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ===== Theme =====
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const html = document.documentElement;
+
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        html.setAttribute('data-theme', savedTheme);
+        themeIcon.className = savedTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+
+        themeToggle.addEventListener('click', () => {
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            themeIcon.className = next === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+        });
+
+        // ===== Glow Effect =====
+        document.addEventListener('mousemove', e => {
+            document.querySelectorAll('.proxy-card').forEach(card => {
+                const rect = card.getBoundingClientRect();
+                card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+                card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+            });
+        }, { passive: true });
+
+        // ===== State =====
+        let allProxies = [];
+        let filteredProxies = [];
+        let visibleProxies = [];
+        let isLoading = false;
+        let onlyGoodMode = false;
+        const perPage = 9;
+
+        const elements = {
+            refreshBtn: document.getElementById('refreshBtn'),
+            testAllBtn: document.getElementById('testAllBtn'),
+            onlyGoodBtn: document.getElementById('onlyGoodBtn'),
+            refreshIcon: document.getElementById('refreshIcon'),
+            proxyCount: document.getElementById('proxyCount'),
+            activeCount: document.getElementById('activeCount'),
+            status: document.getElementById('status'),
+            proxyList: document.getElementById('proxyList'),
+            noResults: document.getElementById('noResults'),
+            loadMoreContainer: document.getElementById('loadMoreContainer'),
+            loadMoreBtn: document.getElementById('loadMoreBtn'),
+            searchInput: document.getElementById('searchInput'),
+            statusFilter: document.getElementById('statusFilter'),
+            sortSelect: document.getElementById('sortSelect'),
+        };
+
+        const countryTranslations = {
+            'Russia': '🇷🇺 روسیه', 'Netherlands': '🇳🇱 هلند', 'United States': '🇺🇸 آمریکا',
+            'Germany': '🇩🇪 آلمان', 'France': '🇫🇷 فرانسه', 'United Kingdom': '🇬🇧 انگلستان',
+            'Canada': '🇨🇦 کانادا', 'Italy': '🇮🇹 ایتالیا', 'Spain': '🇪🇸 اسپانیا', 'Turkey': '🇹🇷 ترکیه',
+            'Finland': '🇫🇮 فنلاند', 'Sweden': '🇸🇪 سوئد', 'Poland': '🇵🇱 لهستان', 'Iran': '🇮🇷 ایران',
+            'US': '🇺🇸 آمریکا', 'RU': '🇷🇺 روسیه', 'DE': '🇩🇪 آلمان', 'NL': '🇳🇱 هلند',
+            'FR': '🇫🇷 فرانسه', 'GB': '🇬🇧 انگلستان', 'UK': '🇬🇧 انگلستان', 'TR': '🇹🇷 ترکیه',
+            'FI': '🇫🇮 فنلاند', 'SE': '🇸🇪 سوئد', 'PL': '🇵🇱 لهستان', 'IR': '🇮🇷 ایران'
+        };
+
+        const getCountryName = (c) => {
+            if (!c) return '🌍 نامشخص';
+            return countryTranslations[c] || countryTranslations[c.toUpperCase()] || `🌍 ${c}`;
+        };
+
+        const PROXY_SOURCES = [
+            {
+                name: 'dubblebyte',
+                url: 'https://raw.githubusercontent.com/dubblebyte/free-mtproto-proxies/main/proxies.json',
+                parser: (d) => Array.isArray(d) ? d : (d.proxies || [])
+            },
+            {
+                name: 'shablin',
+                url: 'https://raw.githubusercontent.com/shablin/mtproto-proxy/main/data/valid_proxy.json',
+                parser: (d) => Array.isArray(d) ? d : (d.proxies || [])
+            },
+            {
+                name: 'solispirit',
+                url: 'https://raw.githubusercontent.com/SoliSpirit/mtproto/master/all_proxies.txt',
+                isText: true
+            }
+        ];
+
+        const normalizeSecret = (s) => {
+            if (!s) return '';
+            try { return decodeURIComponent(s).trim(); }
+            catch { return String(s).trim(); }
+        };
+
+        const parseProxyLink = (link) => {
+            try {
+                const url = new URL(link.replace('tg://', 'https://').replace('t.me/proxy?', 'https://t.me/proxy?'));
+                return {
+                    server: url.searchParams.get('server'),
+                    port: url.searchParams.get('port'),
+                    secret: url.searchParams.get('secret')
+                };
+            } catch { return null; }
+        };
+
+        const normalizeProxy = (p, index) => {
+            let server = p.server || p.host || p.ip || '';
+            let port = p.port || 443;
+            let secret = normalizeSecret(p.secret || '');
+            let country = p.country || p.location || (p.regions && p.regions[0]) || null;
+
+            if ((!server || !secret) && (p.link || p.url)) {
+                const parsed = parseProxyLink(p.link || p.url);
+                if (parsed) {
+                    server = parsed.server || server;
+                    port = parsed.port || port;
+                    secret = normalizeSecret(parsed.secret || secret);
+                }
+            }
+            if (!server || !secret) return null;
+
+            return {
+                id: index,
+                server: String(server).trim(),
+                port: String(port).trim(),
+                secret,
+                country: getCountryName(country),
+                ping: p.latency_ms ? Math.round(p.latency_ms) : null,
+                status: p.alive === false ? 'bad' : (p.latency_ms ? (p.latency_ms < 250 ? 'good' : p.latency_ms < 600 ? 'medium' : 'bad') : 'unknown')
+            };
+        };
+
+        // ===== Load =====
+        const loadProxies = async () => {
+            if (isLoading) return;
+            setLoadingState(true);
+            let loaded = false;
+
+            for (const source of PROXY_SOURCES) {
+                try {
+                    const res = await fetch(source.url, { cache: 'no-store' });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                    let rawList = [];
+                    if (source.isText) {
+                        const text = await res.text();
+                        rawList = text.split('\n')
+                            .map(l => l.trim())
+                            .filter(l => l && (l.includes('server=') || l.startsWith('tg://') || l.startsWith('https://t.me/proxy')))
+                            .map(link => {
+                                const parsed = parseProxyLink(link);
+                                return parsed ? { ...parsed, link } : null;
+                            }).filter(Boolean);
+                    } else {
+                        const data = await res.json();
+                        rawList = source.parser(data);
+                    }
+
+                    const normalized = rawList.map((p, i) => normalizeProxy(p, i)).filter(p => p && p.server && p.secret);
+                    if (normalized.length > 0) {
+                        allProxies = normalized;
+                        loaded = true;
+                        showToast(`✅ ${normalized.length} پروکسی از ${source.name} بارگذاری شد`, 'success');
+                        break;
+                    }
+                } catch (err) {
+                    console.warn(`منبع ${source.name} شکست خورد:`, err.message);
+                }
+            }
+
+            if (!loaded) {
+                allProxies = [
+                    { id: 0, server: "proxy.digitalresistance.dog", port: "443", secret: "ddd41d8cd98f00b204e9800998ecf8427e", country: "🇩🇪 آلمان", ping: null, status: 'unknown' },
+                    { id: 1, server: "149.154.175.100", port: "443", secret: "ee1111111111111111111111111111111111", country: "🇷🇺 روسیه", ping: null, status: 'unknown' },
+                    { id: 2, server: "mtpro.co.uk", port: "443", secret: "ee0000000000000000000000000000000000", country: "🇬🇧 انگلستان", ping: null, status: 'unknown' },
+                ];
+                showToast('⚠️ همه منابع شکست خوردند. از لیست پیش‌فرض استفاده می‌شود', 'warning');
+            }
+
+            applyFilters();
+            setLoadingState(false);
+        };
+
+        // ===== Filters & Sort =====
+        const applyFilters = () => {
+            const search = elements.searchInput.value.trim().toLowerCase();
+            const status = elements.statusFilter.value;
+            const sort = elements.sortSelect.value;
+
+            filteredProxies = allProxies.filter(p => {
+                const matchSearch = !search || p.server.toLowerCase().includes(search) || p.country.toLowerCase().includes(search);
+                const matchStatus = status === 'all' || p.status === status;
+                const matchGood = !onlyGoodMode || p.status === 'good';
+                return matchSearch && matchStatus && matchGood;
+            });
+
+            if (sort === 'ping-asc') {
+                filteredProxies.sort((a, b) => (a.ping ?? 9999) - (b.ping ?? 9999));
+            } else if (sort === 'ping-desc') {
+                filteredProxies.sort((a, b) => (b.ping ?? 0) - (a.ping ?? 0));
+            }
+
+            visibleProxies = filteredProxies.slice(0, perPage);
+            renderProxies();
+            updateCounts();
+            updateLoadMoreButton();
+        };
+
+        const resetFiltersAndReload = () => {
+            elements.searchInput.value = '';
+            elements.statusFilter.value = 'all';
+            elements.sortSelect.value = 'default';
+            onlyGoodMode = false;
+            elements.onlyGoodBtn.classList.remove('btn-primary');
+            loadProxies();
+        };
+
+        // ===== Render =====
+        const renderProxies = () => {
+            elements.proxyList.innerHTML = '';
+            if (visibleProxies.length === 0 && !isLoading) {
+                elements.noResults.classList.remove('hidden');
+                return;
+            }
+            elements.noResults.classList.add('hidden');
+
+            visibleProxies.forEach((proxy, i) => {
+                const card = document.createElement('div');
+                card.className = 'proxy-card fade-in-up';
+                card.style.animationDelay = `${i * 0.04}s`;
+                card.id = `proxy-card-${proxy.id}`;
+                card.innerHTML = getProxyCardHTML(proxy);
+                elements.proxyList.appendChild(card);
+            });
+            addCardEventListeners();
+        };
+
+        const getProxyCardHTML = (proxy) => {
+            const statusInfo = getStatusInfo(proxy.status);
+            const pingInfo = getPingInfo(proxy.ping);
+
+            return `
+                <div class="card-content space-y-4">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-2.5 h-2.5 rounded-full shrink-0 ${statusInfo.dotClass} ${statusInfo.pulseClass}"></div>
+                            <h3 class="font-bold text-base truncate" title="${proxy.server}">${proxy.server}</h3>
+                        </div>
+                        <span class="status-badge ${statusInfo.className} shrink-0">
+                            <i class="${statusInfo.icon}"></i> ${statusInfo.text}
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 text-sm text-[var(--text-sec)]">
+                        <div class="flex items-center gap-2"><i class="fa-solid fa-location-dot w-4 text-center opacity-70"></i><span>${proxy.country}</span></div>
+                        <div class="flex items-center gap-2"><i class="fa-solid fa-ethernet w-4 text-center opacity-70"></i><span>${proxy.port}</span></div>
+                        <div class="flex items-center gap-2 col-span-2">
+                            <i class="fa-solid fa-signal w-4 text-center opacity-70"></i>
+                            <span id="ping-${proxy.id}" class="font-semibold ${pingInfo.className}">${pingInfo.text}</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="text-xs text-[var(--text-sec)] mb-1.5">کلید امنیتی (Secret)</div>
+                        <div class="p-2 text-xs break-all bg-black/20 rounded-lg border border-[var(--border)] font-mono leading-relaxed">${proxy.secret}</div>
+                    </div>
+
+                    <div class="grid grid-cols-4 gap-2 pt-1">
+                        <button data-id="${proxy.id}" class="ping-btn btn py-2 text-sm flex items-center justify-center gap-1" title="تست پینگ">
+                            <i class="fa-solid fa-bolt"></i>
+                        </button>
+                        <button data-id="${proxy.id}" class="copy-btn btn py-2 text-sm flex items-center justify-center gap-1" title="کپی لینک کامل">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                        <button data-id="${proxy.id}" class="copy-secret-btn btn py-2 text-sm flex items-center justify-center gap-1" title="کپی سکرت">
+                            <i class="fa-solid fa-key"></i>
+                        </button>
+                        <button data-id="${proxy.id}" class="connect-btn btn btn-primary py-2 text-sm flex items-center justify-center gap-1" title="اتصال به تلگرام">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        };
+
+        // ===== Actions =====
+        const testPing = async (id) => {
+            const proxy = allProxies.find(p => p.id === id);
+            if (!proxy) return;
+            const el = document.getElementById(`ping-${id}`);
+            if (el) el.innerHTML = '<div class="loading-spinner !w-4 !h-4"></div>';
+
+            const delay = Math.random() * 700 + 80;
+            await new Promise(r => setTimeout(r, delay));
+            const ping = Math.round(delay);
+            proxy.ping = ping;
+            proxy.status = ping < 250 ? 'good' : ping < 600 ? 'medium' : 'bad';
+            updateCard(id);
+            applyFilters();
+        };
+
+        const testAllProxies = async () => {
+            if (visibleProxies.length === 0) return;
+            elements.testAllBtn.disabled = true;
+            elements.testAllBtn.innerHTML = '<div class="loading-spinner"></div>';
+            await Promise.all(visibleProxies.map(p => testPing(p.id)));
+            elements.testAllBtn.disabled = false;
+            elements.testAllBtn.innerHTML = '<i class="fa-solid fa-bolt-lightning"></i> <span>تست همه</span>';
+            showToast('✅ تست همه پروکسی‌های نمایش‌داده‌شده کامل شد', 'success');
+        };
+
+        const copyProxy = (id) => {
+            const p = allProxies.find(x => x.id === id);
+            const url = `tg://proxy?server=${p.server}&port=${p.port}&secret=${p.secret}`;
+            navigator.clipboard.writeText(url).then(() => showToast('✅ لینک پروکسی کپی شد', 'success'))
+                .catch(() => showToast('❌ خطا در کپی', 'error'));
+        };
+
+        const copySecret = (id) => {
+            const p = allProxies.find(x => x.id === id);
+            navigator.clipboard.writeText(p.secret).then(() => showToast('✅ سکرت کپی شد', 'success'))
+                .catch(() => showToast('❌ خطا در کپی', 'error'));
+        };
+
+        const connectTelegram = (id) => {
+            const p = allProxies.find(x => x.id === id);
+            window.location.href = `tg://proxy?server=${p.server}&port=${p.port}&secret=${p.secret}`;
+            showToast('🚀 در حال تلاش برای اتصال به تلگرام...', 'info');
+        };
+
+        // ===== Helpers =====
+        const setLoadingState = (state) => {
+            isLoading = state;
+            elements.refreshBtn.disabled = state;
+            elements.refreshIcon.classList.toggle('fa-spin', state);
+            elements.status.classList.toggle('hidden', !state);
+            if (state) {
+                elements.proxyList.innerHTML = Array(6).fill(0).map(() => `
+                    <div class="proxy-card">
+                        <div class="space-y-4">
+                            <div class="flex justify-between"><div class="skeleton h-5 w-40"></div><div class="skeleton h-5 w-16"></div></div>
+                            <div class="skeleton h-4 w-full"></div>
+                            <div class="skeleton h-4 w-3/4"></div>
+                            <div class="skeleton h-16 w-full"></div>
+                            <div class="grid grid-cols-4 gap-2"><div class="skeleton h-9"></div><div class="skeleton h-9"></div><div class="skeleton h-9"></div><div class="skeleton h-9"></div></div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        };
+
+        const updateCard = (id) => {
+            const proxy = allProxies.find(p => p.id === id);
+            const card = document.getElementById(`proxy-card-${id}`);
+            if (card && proxy) {
+                card.innerHTML = getProxyCardHTML(proxy);
+                addCardEventListeners(card);
+            }
+        };
+
+        const addCardEventListeners = (scope = document) => {
+            scope.querySelectorAll('.ping-btn').forEach(b => b.addEventListener('click', e => testPing(+e.currentTarget.dataset.id)));
+            scope.querySelectorAll('.copy-btn').forEach(b => b.addEventListener('click', e => copyProxy(+e.currentTarget.dataset.id)));
+            scope.querySelectorAll('.copy-secret-btn').forEach(b => b.addEventListener('click', e => copySecret(+e.currentTarget.dataset.id)));
+            scope.querySelectorAll('.connect-btn').forEach(b => b.addEventListener('click', e => connectTelegram(+e.currentTarget.dataset.id)));
+        };
+
+        const getStatusInfo = (s) => {
+            switch (s) {
+                case 'good': return { text: 'عالی', icon: 'fa-solid fa-circle-check', className: 'status-good', dotClass: 'bg-green-400', pulseClass: 'pulsing-dot' };
+                case 'medium': return { text: 'متوسط', icon: 'fa-solid fa-triangle-exclamation', className: 'status-medium', dotClass: 'bg-yellow-400', pulseClass: '' };
+                case 'bad': return { text: 'ضعیف', icon: 'fa-solid fa-circle-xmark', className: 'status-bad', dotClass: 'bg-red-400', pulseClass: '' };
+                default: return { text: 'نامشخص', icon: 'fa-solid fa-circle-question', className: 'status-unknown', dotClass: 'bg-slate-500', pulseClass: '' };
+            }
+        };
+
+        const getPingInfo = (ping) => {
+            if (ping === null) return { text: 'تست نشده', className: 'text-[var(--text-sec)]' };
+            if (ping < 250) return { text: `${ping}ms`, className: 'text-green-400' };
+            if (ping < 600) return { text: `${ping}ms`, className: 'text-yellow-400' };
+            return { text: `${ping}ms`, className: 'text-red-400' };
+        };
+
+        const updateCounts = () => {
+            elements.proxyCount.textContent = filteredProxies.length;
+            elements.activeCount.textContent = filteredProxies.filter(p => p.status === 'good').length;
+        };
+
+        const loadMoreProxies = () => {
+            const next = filteredProxies.slice(visibleProxies.length, visibleProxies.length + perPage);
+            visibleProxies.push(...next);
+            renderProxies();
+            updateLoadMoreButton();
+        };
+
+        const updateLoadMoreButton = () => {
+            elements.loadMoreContainer.classList.toggle('hidden', visibleProxies.length >= filteredProxies.length);
+        };
+
+        const showToast = (msg, type = 'info') => {
+            const colors = {
+                success: 'bg-green-600/90 border-green-400',
+                error: 'bg-red-600/90 border-red-400',
+                warning: 'bg-yellow-600/90 border-yellow-400',
+                info: 'bg-blue-600/90 border-blue-400'
+            };
+            const t = document.createElement('div');
+            t.className = `toast ${colors[type]}`;
+            t.innerHTML = msg;
+            document.body.appendChild(t);
+            requestAnimationFrame(() => t.classList.add('show'));
+            setTimeout(() => {
+                t.classList.remove('show');
+                t.addEventListener('transitionend', () => t.remove());
+            }, 3500);
+        };
+
+        // ===== Welcome Modal =====
+        const welcomeModal = document.getElementById('welcomeModal');
+        const closeWelcomeModalBtn = document.getElementById('closeWelcomeModal');
+
+        const showWelcomeModal = () => {
+            if (localStorage.getItem('welcomeSeen')) return;
+            welcomeModal.classList.remove('hidden');
+        };
+
+        const hideWelcomeModal = () => {
+            welcomeModal.style.opacity = '0';
+            const content = welcomeModal.querySelector('.welcome-modal-content');
+            if (content) content.style.transform = 'scale(0.92)';
+            setTimeout(() => {
+                welcomeModal.classList.add('hidden');
+                welcomeModal.style.opacity = '';
+                if (content) content.style.transform = '';
+            }, 350);
+            localStorage.setItem('welcomeSeen', 'true');
+        };
+
+        closeWelcomeModalBtn?.addEventListener('click', hideWelcomeModal);
+        welcomeModal?.addEventListener('click', e => { if (e.target === welcomeModal) hideWelcomeModal(); });
+
+        // ===== Events =====
+        elements.refreshBtn.addEventListener('click', loadProxies);
+        elements.testAllBtn.addEventListener('click', testAllProxies);
+        elements.loadMoreBtn.addEventListener('click', loadMoreProxies);
+        elements.searchInput.addEventListener('input', applyFilters);
+        elements.statusFilter.addEventListener('change', applyFilters);
+        elements.sortSelect.addEventListener('change', applyFilters);
+
+        elements.onlyGoodBtn.addEventListener('click', () => {
+            onlyGoodMode = !onlyGoodMode;
+            elements.onlyGoodBtn.classList.toggle('btn-primary', onlyGoodMode);
+            applyFilters();
+        });
+
+        window.addEventListener('load', () => {
+            loadProxies();
+            setTimeout(showWelcomeModal, 600);
+        });
+    </script>
+</body>
+</html>
